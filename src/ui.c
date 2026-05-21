@@ -1,17 +1,45 @@
 #include <Elementary.h>
-#include "logic.h"
 #include <libintl.h>
+#include <unistd.h>
+#include "logic.h"
 
 #define _(String) gettext(String)
 
 static Evas_Object *start_spinner;
 static Evas_Object *end_spinner;
 
+static void kill_daemon(void)
+{
+    char cmd[256];
+    pid_t my_pid = getpid();
+
+    snprintf(cmd, sizeof(cmd),
+             "pgrep -f 'nl-ease --daemon' | grep -v %d | xargs -r kill -TERM 2>/dev/null || true", 
+             my_pid);
+
+    system(cmd);
+    usleep(150000);  // 150ms
+    snprintf(cmd, sizeof(cmd),
+             "pgrep -f 'nl-ease --daemon' | grep -v %d | xargs -r kill -KILL 2>/dev/null || true", 
+             my_pid);
+    system(cmd);
+
+    printf("Daemon termination attempted.\n");
+}
+
 static void
 on_toggle_changed(void *data, Evas_Object *obj, void *event_info)
 {
-    int val = elm_check_state_get(obj);
-    logic_set_enabled(val);
+    int enabled = elm_check_state_get(obj);
+    
+    logic_set_enabled(enabled);
+
+    if (enabled == 0) {
+        printf("Enabled -> OFF: killing daemon...\n");
+        kill_daemon();
+    } else {
+        printf("Enabled -> ON\n");
+    }
 }
 
 static void
@@ -51,6 +79,19 @@ on_launch_daemon_clicked(void *data, Evas_Object *obj, void *event_info)
     // launch daemon in background
     system("nl-ease --daemon &");
 
+    elm_exit();
+}
+
+static void
+on_win_delete(void *data, Evas_Object *obj, void *event_info)
+{
+    AppState *s = logic_get_state();
+    
+    if (!s->enabled) {
+        printf("Closing GUI with Enabled=OFF -> killing daemon\n");
+        kill_daemon();
+    }
+    
     elm_exit();
 }
 
@@ -149,4 +190,6 @@ void ui_init(void)
 	elm_spinner_value_set(end_spinner, s->end_hour);
 	
     evas_object_show(win);
+    
+    evas_object_smart_callback_add(win, "delete,request", on_win_delete, NULL);
 }
