@@ -3,6 +3,7 @@
 #include <Ecore.h>
 #include <time.h>
 #include <sys/stat.h>
+#include <unistd.h>          
 
 #include "logic.h"
 #include "xrandr.h"
@@ -10,36 +11,40 @@
 static AppState state;
 
 static Eina_Bool daemon_timer_cb(void *data);
+static int       is_in_schedule(void);
 
-static int is_in_schedule(void)
+/* Internal Functions */
+
+static int
+is_in_schedule(void)
 {
     time_t t = time(NULL);
-    struct tm *tm = localtime(&t);
-    
-    int now_minutes = tm->tm_hour * 60 + tm->tm_min;
+    const struct tm *tm = localtime(&t);
 
+    int now_minutes   = tm->tm_hour * 60 + tm->tm_min;
     int start_minutes = state.start_hour * 60;
     int end_minutes   = state.end_hour * 60;
 
     if (state.start_hour < state.end_hour) {
-        // average case
         return (now_minutes >= start_minutes && now_minutes < end_minutes);
     } else {
-        // midnight case
         return (now_minutes >= start_minutes || now_minutes < end_minutes);
     }
 }
 
-void logic_apply(void)
+void
+logic_apply(void)
 {
     int in_schedule = is_in_schedule();
 
-    // Logging every 5 minuts 
+    /* Logging every 5 min */
     static time_t last_log = 0;
     time_t now = time(NULL);
 
-    if (now - last_log >= 300) {
-        struct tm *tm = localtime(&now);
+    if (now - last_log >= 300)
+     {
+        const struct tm *tm = localtime(&now);
+
         printf("[nl-ease %02d:%02d] enabled=%d | %02d:00-%02d:00 | in_schedule=%d → %s\n",
                tm->tm_hour, tm->tm_min,
                state.enabled,
@@ -47,7 +52,7 @@ void logic_apply(void)
                in_schedule,
                (state.enabled && in_schedule) ? "NIGHT MODE" : "DAY MODE");
         last_log = now;
-    }
+     }
 
     if (state.enabled && in_schedule) {
         xrandr_set_temperature(state.temperature);
@@ -56,7 +61,8 @@ void logic_apply(void)
     }
 }
 
-void logic_init(void)
+void
+logic_init(void)
 {
     state.enabled = 0;
     state.temperature = 4500;
@@ -67,26 +73,30 @@ void logic_init(void)
     logic_apply();
 }
 
-AppState *logic_get_state(void)
+AppState *
+logic_get_state(void)
 {
     return &state;
 }
 
-void logic_set_enabled(int enabled)
+void
+logic_set_enabled(int enabled)
 {
     state.enabled = enabled;
     logic_apply();
     logic_save();
 }
 
-void logic_set_temperature(int temp)
+void
+logic_set_temperature(int temp)
 {
     state.temperature = temp;
     logic_apply();
     logic_save();
 }
 
-void logic_set_schedule(int start_hour, int end_hour)
+void
+logic_set_schedule(int start_hour, int end_hour)
 {
     state.start_hour = start_hour;
     state.end_hour = end_hour;
@@ -94,13 +104,14 @@ void logic_set_schedule(int start_hour, int end_hour)
     logic_save();
 }
 
-// DAEMON
+/* DAEMON */
 
-static Eina_Bool daemon_timer_cb(void *data)
+static Eina_Bool
+daemon_timer_cb(void *data EINA_UNUSED)
 {
     static int load_counter = 0;
 
-    // read conf every 60 sec
+    /* read conf every 60 sec */
     if (++load_counter >= 4) {   // 4*15s=60s
         logic_load();
         load_counter = 0;
@@ -110,7 +121,8 @@ static Eina_Bool daemon_timer_cb(void *data)
     return ECORE_CALLBACK_RENEW;
 }
 
-void logic_run_daemon(void)
+void
+logic_run_daemon(void)
 {
     logic_init();
 
@@ -125,9 +137,10 @@ void logic_run_daemon(void)
     xrandr_reset();
 }
 
-// CONFIG
+/* CONFIG */
 
-static const char *get_config_path(void)
+static const char *
+get_config_path(void)
 {
     static char path[256];
     const char *home = getenv("HOME");
@@ -137,7 +150,8 @@ static const char *get_config_path(void)
     return path;
 }
 
-void logic_save(void)
+void
+logic_save(void)
 {
     const char *home = getenv("HOME");
     if (!home) return;
@@ -157,7 +171,8 @@ void logic_save(void)
     fclose(f);
 }
 
-void logic_load(void)
+void
+logic_load(void)
 {
     FILE *f = fopen(get_config_path(), "r");
     if (!f) return;
