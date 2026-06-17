@@ -19,13 +19,13 @@ kill_daemon(void)
              "pgrep -f 'nl-ease --daemon' | grep -v %d | xargs -r kill -TERM 2>/dev/null || true", 
              my_pid);
 
-    system(cmd);
+    ecore_exe_run(cmd, NULL);
     usleep(150000);  // 150ms
 
     snprintf(cmd, sizeof(cmd),
              "pgrep -f 'nl-ease --daemon' | grep -v %d | xargs -r kill -KILL 2>/dev/null || true", 
              my_pid);
-    system(cmd);
+    ecore_exe_run(cmd, NULL);
 
     printf("Daemon termination attempted.\n");
 }
@@ -80,7 +80,7 @@ on_launch_daemon_clicked(void *data, Evas_Object *obj EINA_UNUSED, void *event_i
         evas_object_del(win);
 
     // launch daemon
-    system("nl-ease --daemon &");
+    ecore_exe_run("nl-ease --daemon &", NULL);
 
     printf("Daemon launched. Closing GUI...\n");
     elm_exit();

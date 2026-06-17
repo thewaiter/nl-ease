@@ -14,7 +14,7 @@ static Eina_Bool daemon_timer_cb(void *data);
 static int       is_in_schedule(void);
 
 /* Internal Functions */
-
+ 
 static int
 is_in_schedule(void)
 {
@@ -171,16 +171,22 @@ logic_save(void)
     fclose(f);
 }
 
-void
-logic_load(void)
+void logic_load(void)
 {
     FILE *f = fopen(get_config_path(), "r");
     if (!f) return;
 
-    fscanf(f, "enabled=%d\n", &state.enabled);
-    fscanf(f, "temperature=%d\n", &state.temperature);
-    fscanf(f, "start=%d\n", &state.start_hour);
-    fscanf(f, "end=%d\n", &state.end_hour);
+    if (fscanf(f, "enabled=%d", &state.enabled) != 1)
+        state.enabled = 0;
+
+    if (fscanf(f, "temperature=%d", &state.temperature) != 1)
+        state.temperature = 0;
+
+    if (fscanf(f, "start=%d", &state.start_hour) != 1)
+        state.start_hour = 0;
+
+    if (fscanf(f, "end=%d", &state.end_hour) != 1)
+        state.end_hour = 0;
 
     fclose(f);
 }
